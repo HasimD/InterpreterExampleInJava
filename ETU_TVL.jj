@@ -1,0 +1,368 @@
+ 	
+PARSER_BEGIN(ETU_TVL)
+
+class Pair{ /** FOR (NAME,VALUE) INFORMATION */
+	String name;
+	String value;
+	public Pair(String name,String value){
+		this.name=name;
+		this.value=value;
+	}
+	public String getValue(String str, Pair  pairs[]){			int check=0;
+		String s="";
+		for (int i = 0; i < pairs.length; i++) {		 			if(str.equals(pairs[i].name)){
+				s=pairs[i].value;
+				check=0;
+				break;
+			}
+			else
+				check=1;
+	  				
+			}
+			if(check==1){
+				System.out.println("ERROR: UNDECLARED VALUE!!");
+				System.exit(0);
+			}
+	return s;
+	
+	}
+	public Pair getPair(String str, Pair  pairs[]){			int check=0;
+		Pair p= new Pair("","");
+		for (int i = 0; i < pairs.length; i++) {		 			if(str.equals(pairs[i].name)){
+				p=pairs[i];
+				check=0;
+				break;
+			}
+			else
+				check=1;
+	  				
+			}
+			if(check==1){
+				System.out.println("ERROR: UNDECLARED VALUE!!");
+				System.exit(0);
+			}
+	return p;
+	
+	}
+
+}
+
+
+public class ETU_TVL {
+
+  public static void main(String args[]) throws ParseException {
+    ETU_TVL parser = new ETU_TVL(System.in);
+    parser.EtuTvlLanguage();
+  }
+
+}
+
+PARSER_END(ETU_TVL)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| < "--" (~["\n","\r"])* ("\n" | "\r" | "\r\n") >
+}
+
+TOKEN :
+{
+  	< Logic: "FALSE" | "TRUE" | "UNKNOWN" > 
+  |	< Semicolon : ";">
+  |	< LPAR : "(">
+  |	< RPAR : ")">
+  |	< Comma : ",">
+  |	< Assignment : "=">
+  | 	< OR : "OR">
+  |	< AND : "AND">
+  |	< NOT : "NOT">
+  |	<INPUT : "INPUT">
+  |	<OUTPUT : "OUTPUT">
+  |	< Program : "PROGRAM">
+  |	< DECSTMT : "DECLARATION SECTION">
+  |	< INITSTMT : "INITIALIZATION SECTION">
+  |	< MAINSTMT : "MAIN SECTION">
+  |	< Message : "’" (~["\n","\r"])+ "’" >
+  |	< Variable: ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"] )* >
+    
+  
+}
+
+
+/** Root production. */
+void EtuTvlLanguage() :
+{ 
+Token x;
+String[] strlist; 
+Pair[] pairs; 	
+}
+{
+	
+	<Program> (x=<Variable>) <Semicolon>
+    	(strlist = Declaration())
+	
+
+	{ System.out.println("PROGRAM " + x +"\n");
+	  pairs = new Pair[strlist.length];
+	  for (int i = 0; i < strlist.length; i++) { 
+		 pairs[i]= new Pair(strlist[i],"UNKNOWN");/**assigning with "UNKNOWN" value for declaration*/
+		if(i!=strlist.length-1)
+			System.out.print(pairs[i].name + ",");
+		else
+			System.out.print(pairs[i].name + ";\n");	  
+	}
+	  
+	  System.out.println("DECLARATION is completed.\n");
+	}
+	
+	pairs=Initilazition(pairs)/**initializing with initial value*/
+	{	
+		for (int i = 0; i < pairs.length; i++) {
+	     	 System.out.println(pairs[i].name + "=" + pairs[i].value + ";");	  	}
+		System.out.println("INITIALIZING is completed.\n");
+
+	}
+
+	MainPart(pairs)
+	
+	<EOF>
+}
+
+/** ------------ START OF DECLARATION PART ----------------*/
+
+String[] Declaration() :
+{ 
+	String vars;
+	String[] variables ;
+
+}
+{
+	<DECSTMT>
+	vars = GetVariableNames()
+  { 
+	variables = vars.split(",");
+	return variables;	
+  }
+
+
+
+}
+
+String GetVariableNames():
+{
+	String s="" ;
+	Token x;
+}
+
+{	
+
+	(x=<Variable>) 
+		{
+			s=(String)x.image;
+		}
+	(<Comma> x=<Variable>
+		{
+			s=s + "," + (String)x.image;
+		}
+	)*
+
+	<Semicolon>
+
+	{
+	return s;	
+	}
+}
+
+
+/** ------------ END OF DECLARATION PART ----------------*/
+
+/** ------------ START OF INITIALIZATION PART --------------*/
+
+
+Pair[] Initilazition(Pair[] pairs) :
+{ 
+Token x;
+String s="";
+}
+{
+
+	<INITSTMT>	
+  	
+	((x=<Variable>) <Assignment> s=GetInitialValue()<Semicolon>
+		{
+			String str= (String)x.image;						int check=0;
+			for (int i = 0; i < pairs.length; i++) {		 			if(str.equals(pairs[i].name)){
+					pairs[i].value=s;
+					check=0;
+					break;
+				}
+				else
+					check=1;
+	  				
+			}
+			if(check==1){
+				System.out.println("ERROR: UNDECLARED VALUE!!");
+				System.exit(0);
+			}
+				
+
+		}
+	
+	)*
+
+	{return pairs;}
+	
+}
+
+
+
+
+String GetInitialValue():
+{Token x;}
+{
+x=<Logic>{return (String)x.image;}
+}	
+
+/** ------------ END OF INITIALIZATION PART --------------*/
+
+
+/** ------------ START OF MAIN PART PART --------------*/
+
+void MainPart(Pair pairs[]):
+{Token x;
+ String s="";	
+}
+{
+<MAINSTMT>
+(InputPart()|BoolPart(pairs)|OutputPart(pairs) )*
+
+}
+
+
+/** --------- MAIN PART IS DIVIDED INTO TWO PART -------*/
+
+/** ------------ 1)START OF BOOL PART ----------------*/
+
+void BoolPart(Pair pairs[]):
+{Token x;String s="";}
+{
+	x=<Variable> <Assignment> s=BoolExpression(pairs)<Semicolon>
+	{
+	pairs[0].getPair((String)x.image,pairs).value=s;
+	}
+
+}
+
+String BoolExpression(Pair pairs[]):
+{String s,s1="";}
+{
+	
+	s=BoolTerm(pairs) 
+	(<OR> s1=BoolTerm(pairs){
+	if(s.equals("TRUE") || s1.equals("TRUE"))
+		s="TRUE";
+	else if(s.equals("FALSE") && s1.equals("FALSE"))
+		s="FALSE";
+	else
+		s="UNKNOWN";
+	})*
+	{return s;}  
+}
+
+
+String BoolTerm(Pair pairs[]):
+{String s,s1="";}
+{
+	
+	s=BoolFactor(pairs)
+	(<AND> s1=BoolFactor(pairs)
+	{
+	if(s.equals("FALSE") || s1.equals("FALSE"))
+		s="FALSE";
+	else if(s.equals("TRUE") && s1.equals("TRUE"))
+		s="TRUE";
+	else 
+		s="UNKNOWN";
+	})*
+	{return s;}  
+
+}
+
+
+String BoolFactor(Pair pairs[]):
+{String s="";}
+{
+	s=BoolPrimary(pairs){return s;} 
+|	<NOT> s=BoolPrimary(pairs)
+	{
+	if(s.equals("TRUE"))
+		return "FALSE";
+	if(s.equals("FALSE"))
+		return "TRUE";
+	return s;
+	} 
+}
+
+String BoolPrimary(Pair pairs[]):
+{Token x;
+String s="";}
+{
+	x=<Logic> {return (String) x.image;} 
+|	x=<Variable> {return pairs[0].getValue( (String) x.image, pairs) ;} 
+|	<LPAR>s=BoolExpression(pairs)<RPAR>{return s;} 
+
+}
+
+
+
+/** ------------ 1)END OF BOOL PART ----------------*/
+
+
+/** ------------ 2)START OF INPUT AND OUTPUT PART ----------*/
+
+void InputPart():
+{Token x;
+ String s="";	
+}
+{
+
+
+<INPUT> s=GetMessage() 
+x=<Variable> <Semicolon>
+
+{System.out.println(s.substring(1,s.length()-1)+  " " +(String)x.image);}
+/** Substring for deleting NON-ASCII Apostrophe(') Character*/
+
+}
+
+void OutputPart(Pair pairs[]):
+{String s,s1="";}
+{
+<OUTPUT> s1=GetMessage() 
+s=BoolExpression(pairs) <Semicolon>
+
+	{System.out.println(s1.substring(1,s1.length()-1)+ " "+ s);}  
+	/** Substring for deleting NON-ASCII Apostrophe(')Character*/
+
+}
+
+
+String GetMessage():
+{Token x;
+String s="";}
+{
+
+ x=<Message> {s=(String)x.image;}
+
+{return s;}
+}
+
+/** ------------ 2)END OF INPUT AND OUTPUT PART ------------*/
+
+
+
+
+
